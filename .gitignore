@@ -49,6 +49,8 @@ app.*.map.json
 *.swp
 .buildlog/
 .history
+#i added that bc we aint using firebase I THINK
+android/app/google-services.json
 
 
 

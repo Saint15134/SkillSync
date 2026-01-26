@@ -1,4 +1,4 @@
-package com.example.skillsync
+package com.isd.skillsync
 
 import io.flutter.embedding.android.FlutterActivity
 
