@@ -1,17 +1,34 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import 'package:firebase_auth/firebase_auth.dart';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyB1xcQONarAUzJ1Q1tutWXyg8jo3DbbBWs",
-  authDomain: "skillsync-27e24.firebaseapp.com",
-  projectId: "skillsync-27e24",
-  storageBucket: "skillsync-27e24.firebasestorage.app",
-  messagingSenderId: "903749104232",
-  appId: "1:903749104232:web:86f7fc5743b40baf0ac1dd"
-};
+class AuthService {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+  // Get current user
+  User? get currentUser => _auth.currentUser;
+
+  // Sign in with email/password
+  Future<UserCredential> signIn(String email, String password) async {
+    return await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  // Sign up with email/password
+  Future<UserCredential> signUp(String email, String password) async {
+    return await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+
+  // Check if user is authenticated
+  bool isAuthenticated() {
+    return _auth.currentUser != null;
+  }
+}
