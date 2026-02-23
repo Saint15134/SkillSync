@@ -53,9 +53,6 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
 
     _messageController.clear();
-    // Keep focus on the text field after sending for rapid messaging
-    // FocusScope.of(context).requestFocus(_focusNode); 
-    
     try {
       await _dbService.sendMessage(widget.conversationId, currentUserId, text);
     } catch (e) {
@@ -67,14 +64,15 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
+        // 🟢 THEME FIX: Use surface instead of Colors.white
+        backgroundColor: colorScheme.surface,
+        elevation: isDark ? 0 : 0.5,
         centerTitle: true,
-        // Ensure Back button is accessible
         leading: Semantics(
           label: 'Back',
           button: true,
@@ -86,10 +84,13 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         title: Text(
           widget.chatName,
-          style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 17),
+          style: TextStyle(
+            color: colorScheme.primary, 
+            fontWeight: FontWeight.bold, 
+            fontSize: 17
+          ),
         ),
         actions: [
-          // Ensure Info button is accessible
           Semantics(
             label: 'View Profile',
             button: true,
@@ -117,7 +118,12 @@ class _ChatScreenState extends State<ChatScreen> {
               stream: _dbService.getMessages(widget.conversationId),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Center(child: Text("Error loading messages"));
+                  return Center(
+                    child: Text(
+                      "Error loading messages",
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                  );
                 }
                 
                 if (snapshot.hasData) {
@@ -138,13 +144,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemBuilder: (context, index) {
                       final msg = messages[index];
                       final isMe = msg.senderId == currentUserId;
-                      return _buildMessageBubble(msg, isMe, colorScheme);
+                      return _buildMessageBubble(msg, isMe, colorScheme, isDark);
                     },
                   );
                 }
                 return Semantics(
                   label: "Loading chat history",
-                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  child: Center(child: CircularProgressIndicator(color: colorScheme.primary, strokeWidth: 2))
                 );
               },
             ),
@@ -155,13 +161,10 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(MessageModel msg, bool isMe, ColorScheme colorScheme) {
+  Widget _buildMessageBubble(MessageModel msg, bool isMe, ColorScheme colorScheme, bool isDark) {
     final timeString = DateFormat('hh:mm a').format(msg.sentAt);
-    
-    // Accessibility: Determine who sent the message for the screen reader
     final senderLabel = isMe ? "You" : widget.chatName;
 
-    // MergeSemantics combines the message text and time into one read-out
     return MergeSemantics(
       child: Semantics(
         label: "$senderLabel said: ${msg.content}, at $timeString",
@@ -173,29 +176,43 @@ class _ChatScreenState extends State<ChatScreen> {
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                // Ensure width constraints allow for text scaling
                 constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                 decoration: BoxDecoration(
-                  color: isMe ? colorScheme.primary : Colors.white,
+                  // 🟢 THEME FIX: Sent uses Primary, Received uses Surface
+                  color: isMe ? colorScheme.primary : colorScheme.surface,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(16),
                     topRight: const Radius.circular(16),
                     bottomLeft: Radius.circular(isMe ? 16 : 4),
                     bottomRight: Radius.circular(isMe ? 4 : 16),
                   ),
-                  boxShadow: isMe ? [] : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                  boxShadow: isMe 
+                    ? [] 
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), 
+                          blurRadius: 10, 
+                          offset: const Offset(0, 4),
+                        )
+                      ],
                 ),
                 child: Text(
                   msg.content,
-                  // Scale text is handled automatically by Flutter, but ensure fontSize is reasonable
-                  style: TextStyle(color: isMe ? Colors.white : colorScheme.onSurface, fontSize: 15, height: 1.3),
+                  style: TextStyle(
+                    // 🟢 THEME FIX: Sent text uses onPrimary, Received uses onSurface
+                    color: isMe ? colorScheme.onPrimary : colorScheme.onSurface, 
+                    fontSize: 15, 
+                    height: 1.3
+                  ),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                // Exclude this specific Text widget from semantics because it's already covered by the parent MergeSemantics
                 child: ExcludeSemantics(
-                  child: Text(timeString, style: TextStyle(color: colorScheme.secondary.withOpacity(0.8), fontSize: 10))
+                  child: Text(
+                    timeString, 
+                    style: TextStyle(color: colorScheme.secondary.withOpacity(0.8), fontSize: 10)
+                  )
                 ),
               ),
             ],
@@ -206,48 +223,59 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputBar(ThemeData theme, ColorScheme colorScheme) {
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.only(left: 16, right: 16, bottom: 34, top: 12),
-      decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: colorScheme.outline.withOpacity(0.5)))),
+      decoration: BoxDecoration(
+        // 🟢 THEME FIX: Use surface instead of Colors.white
+        color: colorScheme.surface, 
+        border: Border(
+          top: BorderSide(color: colorScheme.outline.withOpacity(isDark ? 0.2 : 0.5))
+        ),
+      ),
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _messageController,
               minLines: 1, 
-              maxLines: 4, // Allows text field to grow if user increases font size
-              textInputAction: TextInputAction.send, // Keyboard shows "Send" button
+              maxLines: 4, 
+              textInputAction: TextInputAction.send,
               onSubmitted: (_) => _sendMessage(),
+              // 🟢 THEME FIX: Explicitly use onSurface for text
               style: TextStyle(color: colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: 'Message...',
+                hintStyle: TextStyle(color: colorScheme.secondary.withOpacity(0.7)),
                 filled: true,
+                // Scaffold background color provides good contrast for the input field
                 fillColor: theme.scaffoldBackgroundColor,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24), 
+                  borderSide: BorderSide.none
+                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               ),
             ),
           ),
           const SizedBox(width: 12),
           
-          // Send Button
           Semantics(
             button: true,
             label: "Send message",
-            enabled: true, // Could bind to _messageController.text.isNotEmpty if state was managed
             child: GestureDetector(
               onTap: _sendMessage,
-              // Wrap in container to ensure minimum touch target size (48x48)
-              // The visual circle is 44px (radius 22), so we add transparent padding
               child: Container(
                 width: 48,
                 height: 48,
                 alignment: Alignment.center,
-                color: Colors.transparent, // Ensures the whole 48x48 area is tappable
+                color: Colors.transparent, 
                 child: CircleAvatar(
                   radius: 22,
                   backgroundColor: colorScheme.primary,
-                  child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 22),
+                  // 🟢 THEME FIX: Icon uses onPrimary (Black in dark, White in light)
+                  child: Icon(Icons.arrow_upward_rounded, color: colorScheme.onPrimary, size: 22),
                 ),
               ),
             ),

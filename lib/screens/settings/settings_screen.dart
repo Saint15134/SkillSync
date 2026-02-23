@@ -14,15 +14,14 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool isDarkMode = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor, // F5F5F7
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -38,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: Text(
           "Settings",
           style: TextStyle(
-            color: colorScheme.primary,
+            color: colorScheme.onSurface,
             fontWeight: FontWeight.bold,
             fontSize: 17,
           ),
@@ -49,18 +48,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader("PREFERENCES"),
+            _buildSectionHeader(context, "PREFERENCES"),
             const SizedBox(height: 12),
 
             // Theme Toggle Card
             _buildSettingsCard(
+              colorScheme: colorScheme,
+              isDark: isDark,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     "Dark Mode",
                     style: TextStyle(
-                      color: colorScheme.primary,
+                      color: colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -69,7 +70,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     activeColor: colorScheme.primary,
                     value: context.watch<ThemeProvider>().isDarkMode,
                     onChanged: (value) {
-                      // 🟢 Toggle the state
                       context.read<ThemeProvider>().toggleTheme(value);
                     },
                   ),
@@ -79,21 +79,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 32),
 
-            _buildSectionHeader("ACCOUNT MANAGEMENT"),
+            _buildSectionHeader(context, "ACCOUNT MANAGEMENT"),
             const SizedBox(height: 12),
 
-            // Delete Account logic wrapped in a card-style container logic
+            // Danger Zone Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(
-                  16,
-                ), // 🟢 Consistent Squircle
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -105,16 +103,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     "Danger Zone",
                     style: TextStyle(
-                      color: colorScheme.primary,
+                      color: colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     "Once you delete your account, there is no going back. Please be certain.",
                     style: TextStyle(
-                      color: Color(0xFF86868B),
+                      color: colorScheme.secondary,
                       fontSize: 13,
                       height: 1.4,
                     ),
@@ -135,15 +133,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // --- UI HELPERS ---
+  // --- UI HELPERS (Refactored for Theming) ---
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFF86868B),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.secondary,
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.2,
@@ -152,16 +150,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSettingsCard({required Widget child}) {
+  Widget _buildSettingsCard({
+    required Widget child,
+    required ColorScheme colorScheme,
+    required bool isDark,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -171,36 +173,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // --- LOGIC ---
+  // --- LOGIC (Refactored for Theming & Robustness) ---
 
   void _confirmDeleteAccount() {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Are you sure?"),
-        content: const Text(
+        title: Text(
+          "Are you sure?",
+          style: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
           "This will permanently delete your profile, skills, and chat history.",
+          style: TextStyle(color: colorScheme.secondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              "CANCEL",
-              style: TextStyle(color: Color(0xFF86868B)),
-            ),
+            child: Text("CANCEL", style: TextStyle(color: colorScheme.secondary)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _handleDelete();
             },
-            child: const Text(
+            child: Text(
               "DELETE",
               style: TextStyle(
-                color: Colors.redAccent,
+                color: colorScheme.error,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -211,8 +215,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _handleDelete() async {
-    // 1. Immediate UI Check
     final currentUser = FirebaseAuth.instance.currentUser;
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Session expired. Please log in again.")),
@@ -221,19 +226,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    // Show loading spinner
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF1D1D1F)),
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: colorScheme.primary),
       ),
     );
 
     final authService = context.read<AuthService>();
     final result = await authService.deleteAccount();
 
-    if (mounted) Navigator.pop(context); // Remove spinner
+    if (mounted) Navigator.pop(context);
 
     if (result == "success") {
       context.read<UserProvider>().clearUser();
@@ -241,13 +245,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     } else if (result == "reauthenticate") {
-      // THIS IS COMMON: Firebase requires you to have logged in within the last few minutes
-      // to perform a sensitive action like deleting an account.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Security check: Please log out and back in to delete your account.",
-          ),
+          content: Text("Security check: Please log out and back in to delete your account."),
           backgroundColor: Colors.orange,
         ),
       );
@@ -255,7 +255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result ?? "Error"),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: colorScheme.error,
         ),
       );
     }

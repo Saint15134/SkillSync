@@ -5,7 +5,7 @@ class PrimaryButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool isDestructive;
   final double? width;
-  final double? height; 
+  final double? height;
   final Color? backgroundColor;
   final Color? foregroundColor;
 
@@ -15,7 +15,7 @@ class PrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.isDestructive = false,
     this.width,
-    this.height, 
+    this.height,
     this.backgroundColor,
     this.foregroundColor,
   });
@@ -23,21 +23,26 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final Color finalBgColor = backgroundColor ?? 
-        (isDestructive ? Colors.redAccent : theme.colorScheme.primary);
-    final Color finalFgColor = foregroundColor ?? Colors.white;
+    final colorScheme = theme.colorScheme;
+
+    // 🟢 BACKGROUND LOGIC:
+    final Color finalBgColor = backgroundColor ??
+        (isDestructive ? colorScheme.error : colorScheme.primary);
+
+    // 🟢 FOREGROUND (TEXT) LOGIC:
+    final Color finalFgColor = foregroundColor ??
+        (isDestructive ? Colors.white : colorScheme.onPrimary);
 
     return SizedBox(
       width: width ?? double.infinity,
-      height: height ?? 54, 
+      height: height ?? 54,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: finalBgColor,
           foregroundColor: finalFgColor,
-          elevation: 0,
+          elevation: 0, // 🟢 Setting this to 0 removes both the base and the press shadow
           shape: RoundedRectangleBorder(
-            // 🟢 CHANGED TO 16: This creates a "Rounded Square" look instead of an Oval
-            borderRadius: BorderRadius.circular(16), 
+            borderRadius: BorderRadius.circular(16), // Consistent with your containers
           ),
         ),
         onPressed: onPressed,

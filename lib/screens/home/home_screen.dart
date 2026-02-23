@@ -47,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -58,13 +59,12 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: false,
         title: Padding(
           padding: const EdgeInsets.only(left: 8.0),
-          // Semantic Header for navigation
           child: Semantics(
             header: true,
             child: Text(
               'Messages',
               style: TextStyle(
-                color: colorScheme.primary,
+                color: colorScheme.onSurface, // 🟢 Theme Aware
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 letterSpacing: -0.8,
@@ -77,16 +77,16 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton(
         elevation: 4,
         backgroundColor: colorScheme.primary,
-        tooltip: "Start a new match", // Accessibility label for long-press/hover
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+        tooltip: "Start a new match",
+        // 🟢 FIX: Icon uses onPrimary to contrast with button background
+        child: Icon(Icons.add_rounded, color: colorScheme.onPrimary, size: 30),
         onPressed: () => Navigator.pushNamed(context, '/matching'),
       ),
 
-      // 💬 REAL-TIME Chat list from Firestore
       body: currentUser == null 
         ? Semantics(
             label: "Loading user data",
-            child: const Center(child: CircularProgressIndicator())
+            child: Center(child: CircularProgressIndicator(color: colorScheme.primary))
           )
         : StreamBuilder<List<ConversationModel>>(
             stream: _dbService.getMyConversations(currentUser.uid),
@@ -94,12 +94,12 @@ class _HomeScreenState extends State<HomeScreen> {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Semantics(
                   label: "Loading conversations",
-                  child: const Center(child: CircularProgressIndicator())
+                  child: Center(child: CircularProgressIndicator(color: colorScheme.primary))
                 );
               }
 
               if (snapshot.hasError) {
-                return Center(child: Text("Error loading chats: ${snapshot.error}"));
+                return Center(child: Text("Error loading chats: ${snapshot.error}", style: TextStyle(color: colorScheme.onSurface)));
               }
 
               final conversations = snapshot.data ?? [];
@@ -109,7 +109,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Exclude decorative icon
                       ExcludeSemantics(
                         child: Icon(Icons.chat_bubble_outline_rounded, size: 60, color: colorScheme.secondary.withOpacity(0.3)),
                       ),
@@ -160,11 +159,12 @@ class _ChatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final dbService = DatabaseService();
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return FutureBuilder<UserModel?>(
       future: dbService.getChatPartner(conversation.id, currentUserId),
       builder: (context, snapshot) {
-        // Skeleton loader semantics
         if (!snapshot.hasData) {
           return Semantics(
             label: "Loading chat details",
@@ -173,7 +173,7 @@ class _ChatTile extends StatelessWidget {
               child: Container(
                 height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
+                  color: colorScheme.surface.withOpacity(0.5), // 🟢 Theme Aware
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
@@ -188,7 +188,6 @@ class _ChatTile extends StatelessWidget {
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          // Merge Semantics to make the whole card read as one meaningful button
           child: MergeSemantics(
             child: Semantics(
               button: true,
@@ -210,11 +209,11 @@ class _ChatTile extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colorScheme.surface, // 🟢 Theme Aware
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), // 🟢 Dynamic Shadow
                         blurRadius: 15,
                         offset: const Offset(0, 8),
                       )
@@ -222,16 +221,15 @@ class _ChatTile extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      // Exclude semantics here because the name is read in the label
                       ExcludeSemantics(
                         child: CircleAvatar(
                           radius: 28,
-                          backgroundColor: const Color(0xFFF5F5F7),
+                          backgroundColor: theme.scaffoldBackgroundColor, // 🟢 Theme Aware
                           backgroundImage: partner.profilePictureUrl.isNotEmpty 
                               ? NetworkImage(partner.profilePictureUrl) 
                               : null,
                           child: partner.profilePictureUrl.isEmpty 
-                              ? Icon(Icons.person_rounded, color: theme.colorScheme.primary) 
+                              ? Icon(Icons.person_rounded, color: colorScheme.primary) 
                               : null,
                         ),
                       ),
@@ -243,7 +241,7 @@ class _ChatTile extends StatelessWidget {
                             Text(
                               displayName,
                               style: TextStyle(
-                                color: theme.colorScheme.primary,
+                                color: colorScheme.onSurface, // 🟢 Theme Aware
                                 fontWeight: FontWeight.bold,
                                 fontSize: 17,
                               ),
@@ -252,18 +250,17 @@ class _ChatTile extends StatelessWidget {
                             Text(
                               "Tap to start chatting",
                               style: TextStyle(
-                                color: theme.colorScheme.secondary,
+                                color: colorScheme.secondary, // 🟢 Theme Aware
                                 fontSize: 14,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // Decorative arrow, exclude from reading
                       ExcludeSemantics(
                         child: Icon(Icons.arrow_forward_ios_rounded, 
                             size: 14, 
-                            color: theme.colorScheme.secondary.withOpacity(0.5)),
+                            color: colorScheme.secondary.withOpacity(0.5)),
                       ),
                     ],
                   ),

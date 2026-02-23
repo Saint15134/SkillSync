@@ -12,24 +12,29 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
-      // Outer decoration for the shadow and the Apple "Studio White" background
+      // Outer decoration for the shadow and dynamic surface background
       decoration: BoxDecoration(
-        color: Colors.white,
+        // 🟢 Uses surface (White in Light, Deep Charcoal in Dark)
+        color: colorScheme.surface,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(25.0),
           topRight: Radius.circular(25.0),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            // 🟢 Subtler shadow for dark mode to prevent "muddy" edges
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 20,
-            offset: const Offset(0, -5), // Shadow moves upwards
+            offset: const Offset(0, -5),
           ),
         ],
       ),
       child: ClipRRect(
-        // Clipping the bar so the background color doesn't bleed past the corners
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(25.0),
           topRight: Radius.circular(25.0),
@@ -38,21 +43,24 @@ class AppBottomNav extends StatelessWidget {
           currentIndex: currentIndex,
           onTap: onTap,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          elevation: 0, // Remove default shadow to use the Container's shadow
+          // 🟢 Link background to surface
+          backgroundColor: colorScheme.surface,
+          elevation: 0, 
           
-          // Apple Palette Colors
-          selectedItemColor: const Color(0xFF1D1D1F),   // Deep Slate (Active)
-          unselectedItemColor: const Color(0xFF86868B), // Soft Gray (Inactive)
+          // 🟢 Link active/inactive states to theme primary and secondary
+          selectedItemColor: colorScheme.primary,   
+          unselectedItemColor: colorScheme.secondary, 
           
-          selectedLabelStyle: const TextStyle(
+          selectedLabelStyle: TextStyle(
             fontWeight: FontWeight.w600, 
             fontSize: 12,
             letterSpacing: -0.2,
+            color: colorScheme.primary,
           ),
-          unselectedLabelStyle: const TextStyle(
+          unselectedLabelStyle: TextStyle(
             fontWeight: FontWeight.w500, 
             fontSize: 12,
+            color: colorScheme.secondary,
           ),
           
           items: const [
@@ -68,12 +76,11 @@ class AppBottomNav extends StatelessWidget {
                 padding: EdgeInsets.only(bottom: 4),
                 child: Icon(Icons.notifications_rounded),
               ),
-              label: 'Alerts', // Renamed to Alerts for a cleaner look
+              label: 'Alerts',
             ),
             BottomNavigationBarItem(
               icon: Padding(
                 padding: EdgeInsets.only(bottom: 4),
-                //child: Icon(Icons.explore_rounded),
                 child: Icon(Icons.swipe_rounded), 
               ),
               label: 'Match',
@@ -83,7 +90,7 @@ class AppBottomNav extends StatelessWidget {
                 padding: EdgeInsets.only(bottom: 4),
                 child: Icon(Icons.groups_rounded),
               ),
-              label: 'Social', // Renamed for a shorter label
+              label: 'Social',
             ),
             BottomNavigationBarItem(
               icon: Padding(

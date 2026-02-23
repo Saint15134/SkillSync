@@ -16,13 +16,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _hasLikedLocally = false;
   bool _hasLikedFromDb = false;
   bool _isCheckingLikeStatus = true;
-  bool _hasInitialized = false; // Prevents re-running logic on every build
+  bool _hasInitialized = false; 
   final String _myId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Senior Tip: Grabbing ModalRoute arguments should happen here, not in build.
     if (!_hasInitialized) {
       final UserModel? user =
           ModalRoute.of(context)?.settings.arguments as UserModel?;
@@ -46,12 +45,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final UserModel? user =
         ModalRoute.of(context)?.settings.arguments as UserModel?;
-    if (user == null)
+    if (user == null) {
       return const Scaffold(body: Center(child: Text("Error loading profile")));
+    }
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final dbService = DatabaseService();
+
+    final String displayName = user.fullName.isEmpty ? user.username : user.fullName;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -62,33 +65,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
           tooltip: "Back",
           icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: colorScheme.primary,
+            color: colorScheme.primary, // 🟢 Theme primary
             size: 20,
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("View Profile"),
+        title: Text(
+          "View Profile",
+          style: TextStyle(color: colorScheme.onSurface), // 🟢 Theme Aware
+        ),
       ),
       extendBodyBehindAppBar: true,
       body: SingleChildScrollView(
         physics: const ClampingScrollPhysics(),
         child: Column(
           children: [
-            _buildProfileHeader(user),
+            _buildProfileHeader(user, theme),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
                   const SizedBox(height: 55),
 
-                  // Name & Handle
                   Semantics(
                     header: true,
                     child: Text(
-                      user.fullName.isEmpty ? user.username : user.fullName,
+                      displayName,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF1D1D1F),
+                      style: TextStyle(
+                        color: colorScheme.onSurface, // 🟢 Theme Aware
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.8,
@@ -98,8 +103,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '@${user.username}',
-                    style: const TextStyle(
-                      color: Color(0xFF86868B),
+                    style: TextStyle(
+                      color: colorScheme.secondary, // 🟢 Apple Gray
                       fontSize: 16,
                     ),
                   ),
@@ -111,11 +116,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: colorScheme.surface, // 🟢 Dynamic Surface
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), // 🟢 Dynamic Shadow
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -124,62 +129,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       children: [
                         Text(
-                          user.userBio.isNotEmpty
-                              ? user.userBio
-                              : "No bio provided.",
+                          user.userBio.isNotEmpty ? user.userBio : "No bio provided.",
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Color(0xFF1D1D1F),
+                          style: TextStyle(
+                            color: colorScheme.onSurface, // 🟢 Theme Aware
                             fontSize: 15,
                             height: 1.5,
                           ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
                           child: Divider(
-                            color: Color(0xFFF5F5F7),
+                            color: colorScheme.outline.withOpacity(0.2), // 🟢 Theme Aware
                             thickness: 1.5,
                           ),
                         ),
-                        _buildLikeSection(user),
+                        _buildLikeSection(user, colorScheme),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 32),
 
-                  // 🛠 THE FIXED SKILLS SECTION (Resolving Names)
                   FutureBuilder<List<Map<String, dynamic>>>(
-                    // 🟢 Using the resolved method we added to DatabaseService
                     future: dbService.getUserSkillsWithNames(user.id),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20.0),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF86868B),
-                            ),
+                        return Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colorScheme.secondary,
                           ),
                         );
                       }
 
                       final allSkills = snapshot.data ?? [];
-
-                      // Filter the resolved maps by the 'type' key
-                      final teachingSkills = allSkills
-                          .where((s) => s['type'] == 'teaching')
-                          .toList();
-                      final learningSkills = allSkills
-                          .where((s) => s['type'] == 'learning')
-                          .toList();
+                      final teachingSkills = allSkills.where((s) => s['type'] == 'teaching').toList();
+                      final learningSkills = allSkills.where((s) => s['type'] == 'learning').toList();
 
                       return Column(
                         children: [
-                          _buildSkillSection("TEACHES", teachingSkills),
+                          _buildSkillSection("TEACHES", teachingSkills, colorScheme),
                           const SizedBox(height: 32),
-                          _buildSkillSection("WANTS TO LEARN", learningSkills),
+                          _buildSkillSection("WANTS TO LEARN", learningSkills, colorScheme),
                         ],
                       );
                     },
@@ -194,9 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- REFACTORED HELPERS ---
-
-  Widget _buildLikeSection(UserModel user) {
+  Widget _buildLikeSection(UserModel user, ColorScheme colorScheme) {
     final bool isLiked = _hasLikedLocally || _hasLikedFromDb;
     final int count = user.likesCount + _localLikesOffset;
 
@@ -205,8 +195,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           '$count LIKES',
-          style: const TextStyle(
-            color: Color(0xFF1D1D1F),
+          style: TextStyle(
+            color: colorScheme.onSurface, // 🟢 Theme Aware
             fontWeight: FontWeight.w700,
             fontSize: 14,
             letterSpacing: 1.1,
@@ -214,10 +204,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(width: 12),
         if (_isCheckingLikeStatus)
-          const SizedBox(
+          SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary),
           )
         else
           IconButton(
@@ -225,7 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: Icon(
               isLiked ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
-              color: isLiked ? Colors.redAccent : const Color(0xFF1D1D1F),
+              color: isLiked ? Colors.redAccent : colorScheme.onSurface, // 🟢 Theme Aware
             ),
             onPressed: isLiked || _myId == user.id
                 ? null
@@ -241,16 +231,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(UserModel user) {
+  Widget _buildProfileHeader(UserModel user, ThemeData theme) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // Banner
         Container(
           height: 240,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFE8E8ED),
+            color: theme.colorScheme.outline.withOpacity(0.1),
             image: user.profileBannerUrl.isNotEmpty
                 ? DecorationImage(
                     image: NetworkImage(user.profileBannerUrl),
@@ -259,7 +248,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 : null,
           ),
         ),
-        // Profile avatar
         Positioned(
           bottom: -45,
           left: 0,
@@ -267,13 +255,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Center(
             child: Container(
               padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F5F7),
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor, // 🟢 Seamless merge
                 shape: BoxShape.circle,
               ),
               child: AvatarImage(
                 path: user.profilePictureUrl,
-                radius: 50, // directly using 50
+                radius: 50,
               ),
             ),
           ),
@@ -282,14 +270,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSkillSection(String title, List<Map<String, dynamic>> skills) {
+  Widget _buildSkillSection(String title, List<Map<String, dynamic>> skills, ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: Color(0xFF86868B),
+          style: TextStyle(
+            color: colorScheme.secondary, // 🟢 Theme Aware
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
@@ -297,17 +285,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 12),
         if (skills.isEmpty)
-          const Text(
+          Text(
             "None added.",
-            style: TextStyle(color: Color(0xFF86868B), fontSize: 14),
+            style: TextStyle(color: colorScheme.secondary, fontSize: 14),
           )
         else
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: skills
-                .map((s) => _SkillTile(s['name']))
-                .toList(), // 🟢 Pass Resolved Name
+            children: skills.map((s) => _SkillTile(s['name'])).toList(),
           ),
       ],
     );
@@ -320,14 +306,18 @@ class _SkillTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface, // 🟢 Dynamic Tile
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -335,8 +325,8 @@ class _SkillTile extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Color(0xFF1D1D1F),
+        style: TextStyle(
+          color: colorScheme.onSurface, // 🟢 Dynamic Text
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),

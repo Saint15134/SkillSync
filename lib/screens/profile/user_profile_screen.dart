@@ -7,7 +7,6 @@ import 'package:skillsync/services/auth_service.dart';
 import 'package:skillsync/models/userskill_model.dart';
 import 'package:skillsync/models/user_model.dart';
 import 'package:skillsync/widgets/avatar_image.dart';
-// Note: Ensure your rating_row and bottom_nav are also accessible
 import 'package:skillsync/widgets/bottom_nav.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -34,17 +33,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     final userProvider = context.watch<UserProvider>();
     final user = userProvider.user;
     final dbService = DatabaseService();
 
     if (user == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF5F5F7),
+        backgroundColor: theme.scaffoldBackgroundColor,
         body: Center(
           child: Semantics(
             label: 'Loading profile data',
-            child: const CircularProgressIndicator(color: Color(0xFF1D1D1F)),
+            child: CircularProgressIndicator(color: colorScheme.primary),
           ),
         ),
       );
@@ -55,87 +58,57 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         : user.fullName;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
           /// EDIT PROFILE
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.85),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.edit_note_rounded,
-                color: Color(0xFF1D1D1F),
-                size: 26,
-              ),
-              tooltip: 'Edit Profile',
-              onPressed: () => Navigator.pushNamed(context, '/edit_profile'),
-            ),
+          _buildAppBarAction(
+            icon: Icons.edit_note_rounded,
+            size: 26,
+            tooltip: 'Edit Profile',
+            onPressed: () => Navigator.pushNamed(context, '/edit_profile'),
+            colorScheme: colorScheme,
           ),
 
-          /// SETTINGS (NEW)
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.85),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.settings_rounded,
-                color: Color(0xFF1D1D1F),
-                size: 22,
-              ),
-              tooltip: 'Settings',
-              onPressed: () => Navigator.pushNamed(context, '/settings'),
-            ),
+          /// SETTINGS
+          _buildAppBarAction(
+            icon: Icons.settings_rounded,
+            size: 22,
+            tooltip: 'Settings',
+            onPressed: () => Navigator.pushNamed(context, '/settings'),
+            colorScheme: colorScheme,
           ),
 
           /// LOGOUT
-          Container(
-            margin: const EdgeInsets.only(right: 20),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.85),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.logout_rounded,
-                color: Color(0xFF1D1D1F),
-                size: 22,
-              ),
-              tooltip: 'Logout',
-              onPressed: () async {
-                _showLogoutDialog(context);
-              },
-            ),
+          _buildAppBarAction(
+            icon: Icons.logout_rounded,
+            size: 22,
+            tooltip: 'Logout',
+            isLast: true,
+            onPressed: () => _showLogoutDialog(context),
+            colorScheme: colorScheme,
           ),
         ],
       ),
       extendBodyBehindAppBar: true,
       body: SingleChildScrollView(
-        // Allows content to scroll when text is scaled up
         child: Column(
           children: [
-            _buildProfileHeader(user),
+            _buildProfileHeader(user, theme),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
                   const SizedBox(height: 55),
-                  // Header semantics for screen readers
                   Semantics(
                     header: true,
                     child: Text(
                       displayName,
-                      style: const TextStyle(
-                        color: Color(0xFF1D1D1F),
+                      style: TextStyle(
+                        color: colorScheme.onSurface,
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.8,
@@ -145,16 +118,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '@${user.username.split('@')[0]}',
-                    style: const TextStyle(
-                      color: Color(0xFF86868B),
+                    style: TextStyle(
+                      color: colorScheme.secondary,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _buildBioCard(user),
+                  _buildBioCard(user, colorScheme, isDark),
                   const SizedBox(height: 32),
-                  _buildSkillsSection(dbService, user.id),
+                  _buildSkillsSection(dbService, user.id, colorScheme),
                   const SizedBox(height: 120),
                 ],
               ),
@@ -173,14 +146,38 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
+  /// Helper to build consistent themed circular actions for the transparent AppBar
+  Widget _buildAppBarAction({
+    required IconData icon,
+    required double size,
+    required String tooltip,
+    required VoidCallback onPressed,
+    required ColorScheme colorScheme,
+    bool isLast = false,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(right: isLast ? 20 : 8),
+      decoration: BoxDecoration(
+        color: colorScheme.surface.withOpacity(0.85),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: colorScheme.onSurface, size: size),
+        tooltip: tooltip,
+        onPressed: onPressed,
+      ),
+    );
+  }
+
   void _showLogoutDialog(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => Center(
         child: Semantics(
           label: 'Logging out',
-          child: const CircularProgressIndicator(),
+          child: CircularProgressIndicator(color: colorScheme.primary),
         ),
       ),
     );
@@ -189,9 +186,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       final authService = Provider.of<AuthService>(context, listen: false);
       authService.signOut().then((_) {
         if (context.mounted) {
-          Navigator.of(
-            context,
-          ).pushNamedAndRemoveUntil('/login', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
         }
       });
     } catch (e) {
@@ -199,7 +194,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
-  Widget _buildProfileHeader(UserModel user) {
+  Widget _buildProfileHeader(UserModel user, ThemeData theme) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -207,7 +202,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           height: 240,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFE8E8ED),
+            color: theme.colorScheme.outline.withOpacity(0.2),
             image: user.profileBannerUrl.isNotEmpty
                 ? DecorationImage(
                     image: NetworkImage(user.profileBannerUrl),
@@ -223,12 +218,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           child: Center(
             child: Container(
               padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F5F7), // Matches background
+              decoration: BoxDecoration(
+                color: theme.scaffoldBackgroundColor,
                 shape: BoxShape.circle,
               ),
               child: AvatarImage(
-                // 🟢 THE FIX: Use our new Smart Widget
                 path: user.profilePictureUrl,
                 radius: 50,
               ),
@@ -239,16 +233,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildBioCard(UserModel user) {
+  Widget _buildBioCard(UserModel user, ColorScheme colorScheme, bool isDark) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -259,33 +253,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           Text(
             user.userBio.isNotEmpty ? user.userBio : "No bio available.",
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF1D1D1F),
+            style: TextStyle(
+              color: colorScheme.onSurface,
               fontSize: 15,
               height: 1.5,
               fontWeight: FontWeight.w400,
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Divider(color: Color(0xFFF5F5F7), thickness: 1.5),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Divider(color: colorScheme.outline.withOpacity(0.2), thickness: 1.5),
           ),
           Semantics(
-            // Combines the icon and text into one meaningful label for screen readers
             label: '${user.likesCount} total likes received',
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.favorite_rounded,
-                  color: Color(0xFF1D1D1F),
+                  color: colorScheme.onSurface,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '${user.likesCount} LIKES',
-                  style: const TextStyle(
-                    color: Color(0xFF1D1D1F),
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                     letterSpacing: 1.1,
@@ -299,79 +292,69 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildSkillsSection(DatabaseService dbService, String userId) {
+  Widget _buildSkillsSection(DatabaseService dbService, String userId, ColorScheme colorScheme) {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: dbService.getUserSkillsWithNames(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(20.0),
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Color(0xFF86868B),
+                color: colorScheme.secondary,
               ),
             ),
           );
         }
 
         final allSkills = snapshot.data ?? [];
-
-        final teachingSkills = allSkills
-            .where((s) => s['type'] == 'teaching')
-            .toList();
-
-        final learningSkills = allSkills
-            .where((s) => s['type'] == 'learning')
-            .toList();
+        final teachingSkills = allSkills.where((s) => s['type'] == 'teaching').toList();
+        final learningSkills = allSkills.where((s) => s['type'] == 'learning').toList();
 
         return Column(
           children: [
-            _buildSkillSection("TEACHING", teachingSkills),
+            _buildSkillSection("TEACHING", teachingSkills, colorScheme),
             const SizedBox(height: 32),
-            _buildSkillSection("LEARNING", learningSkills),
+            _buildSkillSection("LEARNING", learningSkills, colorScheme),
           ],
         );
       },
     );
   }
 
-  // Update the parameter type to List<Map<String, dynamic>>
-  // Update the parameter type to List<Map<String, dynamic>>
-  Widget _buildSkillSection(String title, List<Map<String, dynamic>> skills) {
+  Widget _buildSkillSection(String title, List<Map<String, dynamic>> skills, ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Align(
-            alignment: Alignment.centerLeft, // 🟢 Fix alignment for all headers
+            alignment: Alignment.centerLeft,
             child: Text(
               title,
-              style: const TextStyle(
-                color: Color(0xFF86868B),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+              style: TextStyle(
+                color: colorScheme.secondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
               ),
             ),
           ),
         ),
         if (skills.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(left: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
             child: Text(
               "No skills added yet.",
-              style: TextStyle(color: Color(0xFF86868B), fontSize: 14),
+              style: TextStyle(color: colorScheme.secondary, fontSize: 14),
             ),
           )
         else
           Wrap(
             spacing: 10,
             runSpacing: 10,
-            children: skills
-                .map((s) => _SkillTile(s['name']))
-                .toList(), // 🟢 Pass the resolved 'name'
+            children: skills.map((s) => _SkillTile(s['name'])).toList(),
           ),
       ],
     );
@@ -384,16 +367,19 @@ class _SkillTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Semantics(
       label: 'Skill: $label',
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withOpacity(isDark ? 0.2 : 0.02),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -401,8 +387,8 @@ class _SkillTile extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF1D1D1F),
+          style: TextStyle(
+            color: colorScheme.onSurface,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),

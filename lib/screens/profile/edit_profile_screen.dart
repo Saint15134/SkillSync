@@ -19,7 +19,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isSaving = false;
   bool _isLoadingSkills = false;
 
-  // 🟢 ADD THESE TWO LINES:
   final List<String> _avatars = List.generate(
     9,
     (index) => 'assets/profilephoto/${index + 1}.jpg',
@@ -33,8 +32,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _firstNameController = TextEditingController(text: user?.firstName ?? '');
     _lastNameController = TextEditingController(text: user?.lastName ?? '');
     _bioController = TextEditingController(text: user?.userBio ?? '');
-
-    // 🟢 INITIALIZE SELECTION:
     _selectedAvatarPath = user?.profilePictureUrl;
   }
 
@@ -47,7 +44,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile(bool isFirstTime) async {
-    // 1. Hide keyboard
     FocusManager.instance.primaryFocus?.unfocus();
 
     if (!_formKey.currentState!.validate()) return;
@@ -62,79 +58,78 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final String lName = _lastNameController.text.trim();
         final String bio = _bioController.text.trim();
 
-        // 2. Update Firestore
+        // 1️⃣ Update Firestore first
         await DatabaseService().updateUser(user.id, {
           'first_name': fName,
           'last_name': lName,
           'user_bio': bio,
-          'is_onboarded': true, // Ensure they are marked as finished
+          'is_onboarded': true,
           'profile_picture_url': _selectedAvatarPath ?? user.profilePictureUrl,
         });
 
-        // 3. Update Provider LOCALLY (Stops main.dart from looping)
-        userProvider.updateLocalUser(
-          user.copyWith(
-            firstName: fName,
-            lastName: lName,
-            userBio: bio,
-            isOnboarded: true,
-            profilePictureUrl: _selectedAvatarPath ?? user.profilePictureUrl,
-          ),
+        // 2️⃣ Create the updated user object
+        final updatedUser = user.copyWith(
+          firstName: fName,
+          lastName: lName,
+          userBio: bio,
+          isOnboarded: true,
+          profilePictureUrl: _selectedAvatarPath ?? user.profilePictureUrl,
         );
 
         if (mounted) {
-          // 🟢 THE QUICKEST FIX:
-          // Always go to the Profile screen and DELETE all other screens.
-          // This allows the user to see their updates instantly.
+          // 3️⃣ THE FIX: Navigate FIRST to break the loop
+          // This clears the stack and moves to the profile screen
           Navigator.pushNamedAndRemoveUntil(
             context,
             '/user_profile',
             (route) => false,
           );
+
+          // 4️⃣ Update provider AFTER navigation starts to avoid race conditions with main.dart
+          Future.microtask(() => userProvider.updateLocalUser(updatedUser));
         }
       } catch (e) {
         debugPrint("!!! SAVE ERROR: $e !!!");
         if (mounted) {
+          setState(() => _isSaving = false); // Turn off spinner on error
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Error saving: $e"),
-              backgroundColor: Colors.redAccent,
-            ),
+            SnackBar(content: Text("Error saving: $e"), backgroundColor: Colors.redAccent),
           );
         }
-      } finally {
-        if (mounted) setState(() => _isSaving = false);
       }
+      // Note: We removed the 'finally' block to ensure _isSaving doesn't 
+      // trigger a rebuild on a disposed widget during navigation.
     }
   }
 
+  // --- REST OF YOUR CODE (UI and Helpers) ---
+  // Ensure the CircularProgressIndicator uses the theme primary color 
+  // so it's visible in both light/dark mode
+
   void _confirmSkillReset() {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Update Skills?"),
-        content: const Text(
+        title: Text("Update Skills?", style: TextStyle(color: colorScheme.onSurface)),
+        content: Text(
           "This will reset your current skills and allow you to select them again from scratch.\n\nDo you want to continue?",
-          style: TextStyle(height: 1.5),
+          style: TextStyle(height: 1.5, color: colorScheme.onSurface.withOpacity(0.7)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            child: Text("Cancel", style: TextStyle(color: colorScheme.secondary)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _resetAndNavigateSkills();
             },
-            child: const Text(
-              "Yes, Update",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: Text("Yes, Update", style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -150,9 +145,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) Navigator.pushNamed(context, '/onboarding_current');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Theme.of(context).colorScheme.error),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoadingSkills = false);
@@ -167,31 +162,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final bool isFirstTime = user?.isOnboarded == false;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(isFirstTime ? "Final Step" : "Edit Profile"),
+        title: Text(
+          isFirstTime ? "Final Step" : "Edit Profile",
+          style: TextStyle(color: colorScheme.onSurface),
+        ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: isFirstTime
             ? const SizedBox.shrink()
-            : Semantics(
-                label: "Close",
-                button: true,
-                child: IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.black),
-                  onPressed: () => Navigator.pop(context),
-                ),
+            : IconButton(
+                icon: Icon(Icons.close_rounded, color: colorScheme.onSurface),
+                onPressed: () => Navigator.pop(context),
               ),
       ),
       body: SafeArea(
         child: _isLoadingSkills
-            ? Semantics(
-                label: "Resetting skills",
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.black),
-                ),
-              )
+            ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Form(
@@ -203,198 +192,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         _buildStepIndicator(colorScheme),
                         const SizedBox(height: 24),
                       ],
-
-                      // Inside the Column of EditProfileScreen body:
-                      _buildSectionHeader("CHOOSE AVATAR"),
+                      _buildSectionHeader(context, "CHOOSE AVATAR"),
                       const SizedBox(height: 16),
-
-                      SizedBox(
-                        height: 80,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _avatars.length,
-                          itemBuilder: (context, index) {
-                            final avatarPath = _avatars[index];
-                            final isSelected =
-                                _selectedAvatarPath == avatarPath;
-
-                            return GestureDetector(
-                              onTap: () => setState(
-                                () => _selectedAvatarPath = avatarPath,
-                              ),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                margin: const EdgeInsets.only(right: 12),
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isSelected
-                                        ? Colors.black
-                                        : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: CircleAvatar(
-                                  radius: 30,
-                                  backgroundImage: AssetImage(avatarPath),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                      _buildAvatarPicker(colorScheme),
                       const SizedBox(height: 32),
-                      _buildSectionHeader("PERSONAL INFORMATION"),
+                      _buildSectionHeader(context, "PERSONAL INFORMATION"),
                       const SizedBox(height: 12),
-
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              controller: _firstNameController,
-                              style: const TextStyle(color: Colors.black),
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.givenName],
-                              keyboardType: TextInputType.name,
-                              decoration: const InputDecoration(
-                                labelText: 'First Name',
-                                hintText: 'Enter your first name',
-                              ),
-                              validator: (v) =>
-                                  v!.isEmpty ? "Enter your first name" : null,
-                            ),
-                            const SizedBox(height: 16),
-
-                            TextFormField(
-                              controller: _lastNameController,
-                              style: const TextStyle(color: Colors.black),
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.familyName],
-                              keyboardType: TextInputType.name,
-                              decoration: const InputDecoration(
-                                labelText: 'Last Name',
-                                hintText: 'Enter your last name',
-                              ),
-                              validator: (v) =>
-                                  v!.isEmpty ? "Enter your last name" : null,
-                            ),
-                            const SizedBox(height: 16),
-
-                            TextFormField(
-                              controller: _bioController,
-                              style: const TextStyle(color: Colors.black),
-                              maxLines: 3,
-                              textInputAction: TextInputAction.done,
-                              keyboardType: TextInputType.multiline,
-                              decoration: const InputDecoration(
-                                labelText: 'Bio',
-                                hintText: 'Tell us a bit about yourself',
-                                alignLabelWithHint: true,
-                              ),
-                              validator: (v) => v!.length < 10
-                                  ? "Write at least a sentence about yourself"
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ),
-
+                      _buildFormCard(colorScheme, theme),
                       if (!isFirstTime) ...[
                         const SizedBox(height: 32),
-                        _buildSectionHeader("SKILLS"),
+                        _buildSectionHeader(context, "SKILLS"),
                         const SizedBox(height: 12),
-
-                        // Merge Semantics to make the entire tile a single clickable button
-                        MergeSemantics(
-                          child: Semantics(
-                            button: true,
-                            label: "Update Skills",
-                            hint:
-                                "Resets current skills and starts selection over",
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: ListTile(
-                                onTap: _confirmSkillReset,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 8,
-                                ),
-                                leading: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  // Exclude icon from individual reading
-                                  child: ExcludeSemantics(
-                                    child: const Icon(
-                                      Icons.layers_rounded,
-                                      color: Colors.black,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ),
-                                title: const Text(
-                                  "Update Skills",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                                trailing: ExcludeSemantics(
-                                  child: const Icon(
-                                    Icons.arrow_forward_ios_rounded,
-                                    size: 16,
-                                    color: Color(0xFFC7C7CC),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                        _buildUpdateSkillsTile(colorScheme, theme),
                       ],
-
                       const SizedBox(height: 40),
-
                       _isSaving
-                          ? Semantics(
-                              label: "Saving profile changes",
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.black,
-                                ),
-                              ),
-                            )
+                          ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
                           : PrimaryButton(
-                              label: isFirstTime
-                                  ? "FINISH SETUP"
-                                  : "SAVE CHANGES",
+                              label: isFirstTime ? "FINISH SETUP" : "SAVE CHANGES",
                               onPressed: () => _saveProfile(isFirstTime),
-                              height: 48, // Ensure minimum touch target
+                              height: 48,
                             ),
                     ],
                   ),
@@ -404,45 +221,115 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildStepIndicator(ColorScheme colorScheme) {
-    return Semantics(
-      label: "Step 3 of 3",
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE8E8ED),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: Text(
-          'STEP 3 OF 3',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: colorScheme.secondary,
-            letterSpacing: 1.1,
-          ),
-        ),
+  // --- SUB-WIDGETS FOR CLEANER CODE ---
+
+  Widget _buildAvatarPicker(ColorScheme colorScheme) {
+    return SizedBox(
+      height: 80,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _avatars.length,
+        itemBuilder: (context, index) {
+          final avatarPath = _avatars[index];
+          final isSelected = _selectedAvatarPath == avatarPath;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedAvatarPath = avatarPath),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? colorScheme.primary : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: CircleAvatar(
+                radius: 30,
+                backgroundColor: colorScheme.outline.withOpacity(0.1),
+                backgroundImage: AssetImage(avatarPath),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildFormCard(ColorScheme colorScheme, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(theme.brightness == Brightness.light ? 0.03 : 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          TextFormField(
+            controller: _firstNameController,
+            style: TextStyle(color: colorScheme.onSurface),
+            decoration: const InputDecoration(labelText: 'First Name'),
+            validator: (v) => v!.isEmpty ? "Required" : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _lastNameController,
+            style: TextStyle(color: colorScheme.onSurface),
+            decoration: const InputDecoration(labelText: 'Last Name'),
+            validator: (v) => v!.isEmpty ? "Required" : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _bioController,
+            style: TextStyle(color: colorScheme.onSurface),
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: 'Bio', alignLabelWithHint: true),
+            validator: (v) => v!.length < 10 ? "Write a bit more about yourself" : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpdateSkillsTile(ColorScheme colorScheme, ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(theme.brightness == Brightness.light ? 0.03 : 0.2), blurRadius: 20),
+        ],
+      ),
+      child: ListTile(
+        onTap: _confirmSkillReset,
+        leading: Icon(Icons.layers_rounded, color: colorScheme.onSurface),
+        title: Text("Update Skills", style: TextStyle(fontWeight: FontWeight.w600, color: colorScheme.onSurface)),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: colorScheme.outline),
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator(ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: colorScheme.outline.withOpacity(0.1), borderRadius: BorderRadius.circular(30)),
+      child: Text('STEP 3 OF 3', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: colorScheme.secondary, letterSpacing: 1.1)),
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(left: 12),
-      // Mark as Header for easier navigation
-      child: Semantics(
-        header: true,
-        child: Text(
-          title,
-          style: const TextStyle(
-            color: Color(0xFF86868B),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.0,
-          ),
-        ),
-      ),
+      child: Text(title, style: TextStyle(color: colorScheme.secondary, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
     );
   }
 }

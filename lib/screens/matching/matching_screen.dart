@@ -8,7 +8,6 @@ import 'package:skillsync/services/database_service.dart';
 import 'package:skillsync/widgets/bottom_nav.dart';
 import 'package:skillsync/widgets/app_appbar.dart';
 import 'package:skillsync/widgets/primary_button.dart';
-// import 'package:skillsync/widgets/rating_row.dart'; // Unused based on previous code
 
 class MatchingScreen extends StatefulWidget {
   const MatchingScreen({super.key});
@@ -180,9 +179,6 @@ class _MatchingScreenState extends State<MatchingScreen> {
       _currentTeaches = [];
       _currentLearns = [];
     });
-    // Announce to screen reader that a new card is loaded? 
-    // Usually standard focus management handles this, but changing state might require a re-announcement if using a LiveRegion.
-    // For now, standard Flutter focus behavior is usually sufficient.
     
     if (_currentIndex < _matches.length) {
       _loadSkillsForCurrentMatch();
@@ -193,21 +189,21 @@ class _MatchingScreenState extends State<MatchingScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final hasMatches = !_isLoading && _currentIndex < _matches.length;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      // Ensure Back Button in Custom AppBar is accessible
       appBar: const AppAppBar(title: 'Discover Matches', showBack: false),
       body: SafeArea(
         child: _isLoading
             ? Semantics(
                 label: "Loading matches",
-                child: const Center(child: CircularProgressIndicator())
+                child: Center(child: CircularProgressIndicator(color: colorScheme.primary))
               )
             : !hasMatches
-            ? _buildEmptyState()
-            : SingleChildScrollView( // Added scroll view to prevent overflow on small screens/large text
+            ? _buildEmptyState(colorScheme)
+            : SingleChildScrollView(
                 physics: const ClampingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
@@ -218,11 +214,11 @@ class _MatchingScreenState extends State<MatchingScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: colorScheme.surface, // 🟢 Dynamic Background
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04), // 🟢 Dynamic Shadow
                             blurRadius: 30,
                             offset: const Offset(0, 10),
                           ),
@@ -235,25 +231,21 @@ class _MatchingScreenState extends State<MatchingScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Group the Heart Icon and the Number so they are read together: "5 Likes"
                               MergeSemantics(
                                 child: Semantics(
                                   label: "${_matches[_currentIndex].likesCount} Likes",
                                   child: Row(
                                     children: [
-                                      // Exclude icon from individual reading since label covers it
-                                      ExcludeSemantics(
-                                        child: const Icon(
-                                          Icons.favorite_rounded,
-                                          color: Colors.redAccent,
-                                          size: 18,
-                                        ),
+                                      const Icon(
+                                        Icons.favorite_rounded,
+                                        color: Colors.redAccent,
+                                        size: 18,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
                                         '${_matches[_currentIndex].likesCount}',
                                         style: TextStyle(
-                                          color: colorScheme.primary,
+                                          color: colorScheme.onSurface, // 🟢 Dynamic Text
                                           fontWeight: FontWeight.bold,
                                           fontSize: 15,
                                         ),
@@ -263,7 +255,6 @@ class _MatchingScreenState extends State<MatchingScreen> {
                                 ),
                               ),
 
-                              // Info Button with clear label and target size
                               Semantics(
                                 button: true,
                                 label: "View full profile",
@@ -271,7 +262,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
                                   tooltip: "View Profile",
                                   icon: Icon(
                                     Icons.info_outline_rounded,
-                                    color: colorScheme.secondary,
+                                    color: colorScheme.secondary, // 🟢 Dynamic Icon
                                   ),
                                   onPressed: () {
                                     Navigator.pushNamed(
@@ -287,15 +278,27 @@ class _MatchingScreenState extends State<MatchingScreen> {
 
                           const SizedBox(height: 8),
 
-                          // 👤 User Identity Section inside the Card
+                          // 👤 User Identity
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: colorScheme.outline.withOpacity(0.1),
+                            backgroundImage: _matches[_currentIndex].profilePictureUrl.isNotEmpty
+                                ? NetworkImage(_matches[_currentIndex].profilePictureUrl)
+                                : null,
+                            child: _matches[_currentIndex].profilePictureUrl.isEmpty
+                                ? Icon(Icons.person, size: 40, color: colorScheme.secondary)
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                          
                           Semantics(
-                            header: true, // Identify name as a header
+                            header: true,
                             child: Text(
                               (_matches[_currentIndex].firstName.isEmpty)
                                   ? _matches[_currentIndex].username
                                   : _matches[_currentIndex].fullName,
                               style: TextStyle(
-                                color: colorScheme.primary,
+                                color: colorScheme.onSurface,
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -0.5,
@@ -311,7 +314,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.grey.shade600,
+                              color: colorScheme.secondary,
                               fontSize: 13,
                             ),
                           ),
@@ -322,34 +325,35 @@ class _MatchingScreenState extends State<MatchingScreen> {
                           _isSkillLoading
                               ? Semantics(
                                   label: "Loading skills",
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(20.0),
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colorScheme.secondary,
+                                    ),
                                   ),
                                 )
                               : Column(
                                   children: [
-                                    // Header Row
                                     Row(
                                       children: [
-                                        _buildHeaderLabel('TEACHES'),
-                                        _buildHeaderLabel('LEARNS'),
+                                        _buildHeaderLabel('TEACHES', colorScheme),
+                                        _buildHeaderLabel('LEARNS', colorScheme),
                                       ],
                                     ),
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 8.0),
                                       child: Divider(
-                                        color: Color(0xFFF5F5F7),
-                                        thickness: 1.5,
+                                        color: colorScheme.outline.withOpacity(0.2), // 🟢 Dynamic Divider
+                                        thickness: 1,
                                       ),
                                     ),
-                                    // Dynamic Skill Rows
                                     if (_currentTeaches.isEmpty && _currentLearns.isEmpty)
-                                      const Padding(
-                                        padding: EdgeInsets.all(10),
+                                      Padding(
+                                        padding: const EdgeInsets.all(10),
                                         child: Text(
                                           "Skills loading...",
-                                          style: TextStyle(color: Colors.grey),
+                                          style: TextStyle(color: colorScheme.secondary),
                                         ),
                                       )
                                     else
@@ -380,7 +384,6 @@ class _MatchingScreenState extends State<MatchingScreen> {
 
                     const SizedBox(height: 32),
 
-                    // ✅ ACTION BUTTONS
                     PrimaryButton(
                       label: 'ACCEPT MATCH',
                       onPressed: _handleAccept,
@@ -389,7 +392,6 @@ class _MatchingScreenState extends State<MatchingScreen> {
                     const SizedBox(height: 12),
 
                     TextButton(
-                      // Ensure minimum touch target size (48x48)
                       style: TextButton.styleFrom(
                         minimumSize: const Size(48, 48),
                       ),
@@ -425,26 +427,23 @@ class _MatchingScreenState extends State<MatchingScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(ColorScheme colorScheme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Decorative icon, exclude from semantics
-            ExcludeSemantics(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.person_search_rounded,
-                  size: 50,
-                  color: Colors.grey.shade400,
-                ),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: colorScheme.outline.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.person_search_rounded,
+                size: 50,
+                color: colorScheme.secondary,
               ),
             ),
             const SizedBox(height: 24),
@@ -453,7 +452,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
               child: Text(
                 "No Matches Yet",
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
+                  color: colorScheme.onSurface,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -464,7 +463,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
               "We couldn't find any mentors matching your learning skills right now.",
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: colorScheme.secondary,
                 fontSize: 15,
                 height: 1.5,
               ),
@@ -480,18 +479,17 @@ class _MatchingScreenState extends State<MatchingScreen> {
     );
   }
 
-  Widget _buildHeaderLabel(String text) {
+  Widget _buildHeaderLabel(String text, ColorScheme colorScheme) {
     return Expanded(
-      // Mark as header so users can jump to the list
       child: Semantics(
         header: true,
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF86868B),
+          style: TextStyle(
+            color: colorScheme.secondary,
             fontWeight: FontWeight.w800,
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: 1.2,
           ),
         ),
@@ -509,9 +507,6 @@ class _CompactSkillRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
-    // Explicit semantics for the row to clarify relationship
-    // "Teaches [Left], Learns [Right]"
     final String semanticLabel = 
         (left.isNotEmpty ? "Teaches $left, " : "") + 
         (right.isNotEmpty ? "Learns $right" : "");
@@ -527,22 +522,19 @@ class _CompactSkillRow extends StatelessWidget {
                 left,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: colorScheme.primary,
+                  color: colorScheme.onSurface,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-            // Exclude arrow icon from semantics, the context is provided by the row label
-            ExcludeSemantics(
-              child: const Icon(Icons.swap_horiz_rounded, size: 16, color: Colors.black12),
-            ),
+            Icon(Icons.swap_horiz_rounded, size: 16, color: colorScheme.outline.withOpacity(0.5)),
             Expanded(
               child: Text(
                 right,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: colorScheme.primary,
+                  color: colorScheme.onSurface,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
