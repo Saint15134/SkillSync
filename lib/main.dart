@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 // SETTINGS & SERVICES
 import 'package:skillsync/firebase_options.dart';
 import 'package:skillsync/providers/theme_provider.dart';
+import 'package:skillsync/providers/biometrics_provider.dart';
 import 'package:skillsync/screens/settings/settings_screen.dart';
 import 'package:skillsync/services/auth_service.dart';
 import 'package:skillsync/providers/user_provider.dart';
@@ -25,6 +26,7 @@ import 'package:skillsync/screens/onboarding/onboarding_current_skills_screen.da
 import 'package:skillsync/screens/onboarding/onboarding_new_skills_screen.dart';
 import 'package:skillsync/screens/splash/splash_screen.dart';
 import 'package:skillsync/screens/settings/settings_screen.dart';
+import 'package:skillsync/screens/auth/lock_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +38,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => BiometricsProvider()),
       ],
       child: const SkillSyncApp(),
     ),
@@ -72,6 +75,10 @@ class SkillSyncApp extends StatelessWidget {
 
               // 🟢 JUST AUTH: If logged in, go Home. No more onboarding checks here.
               if (snapshot.hasData && snapshot.data != null) {
+                final biometrics = Provider.of<BiometricsProvider>(context);
+                if (biometrics.isEnabled) {
+                  return const LockScreen();
+                }
                 return const HomeScreen();
               }
 
@@ -83,8 +90,7 @@ class SkillSyncApp extends StatelessWidget {
           routes: {
             '/login': (context) => const LoginScreen(),
             '/register': (context) => const RegisterScreen(),
-            '/onboarding_current': (context) =>
-                const OnboardingCurrentSkillsScreen(),
+            '/onboarding_current': (context) => const OnboardingCurrentSkillsScreen(),
             '/onboarding_new': (context) => const OnboardingNewSkillsScreen(),
             '/splash': (context) => const SplashScreen(),
             '/home': (context) => const HomeScreen(),
