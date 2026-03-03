@@ -12,6 +12,8 @@ import 'package:skillsync/providers/user_provider.dart';
 import 'package:skillsync/screens/chat/chat_screen.dart';
 import 'package:skillsync/widgets/bottom_nav.dart';
 
+import '../../widgets/scalable_text.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -61,8 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.only(left: 8.0),
           child: Semantics(
             header: true,
-            child: Text(
+            child: ScalableText(
               'Messages',
+              baseFontSize: 28,
               style: TextStyle(
                 color: colorScheme.onSurface, // 🟢 Theme Aware
                 fontSize: 28,
@@ -238,8 +241,9 @@ class _ChatTile extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            ScalableText(
                               displayName,
+                              baseFontSize: 17,
                               style: TextStyle(
                                 color: colorScheme.onSurface, // 🟢 Theme Aware
                                 fontWeight: FontWeight.bold,
@@ -247,8 +251,9 @@ class _ChatTile extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
+                            ScalableText(
                               "Tap to start chatting",
+                              baseFontSize: 14,
                               style: TextStyle(
                                 color: colorScheme.secondary, // 🟢 Theme Aware
                                 fontSize: 14,
