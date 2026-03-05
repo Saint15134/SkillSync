@@ -27,6 +27,9 @@ import 'package:skillsync/screens/onboarding/onboarding_current_skills_screen.da
 import 'package:skillsync/screens/onboarding/onboarding_new_skills_screen.dart';
 import 'package:skillsync/screens/splash/splash_screen.dart';
 import 'package:skillsync/screens/auth/lock_screen.dart';
+import 'package:skillsync/screens/ai/ai_chat_screen.dart';
+import 'package:skillsync/screens/ai/chat_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -104,6 +107,7 @@ class SkillSyncApp extends StatelessWidget {
             '/community': (context) => const CommunityPage(),
             '/explore': (context) => const MatchingScreen(),
             '/settings': (context) => const SettingsScreen(),
+            '/ai_chat': (context) => const AiChatScreen(),
           },
         );
       },
