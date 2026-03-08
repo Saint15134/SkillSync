@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:skillsync/services/auth_service.dart';
 import 'package:skillsync/services/database_service.dart';
 import 'package:skillsync/widgets/primary_button.dart';
+import 'package:skillsync/services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -241,7 +242,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (mounted) setState(() => _isLoading = false);
 
     if (result == "success") {
-       Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      NotificationService().startListeningForNewNotifications();
+      NotificationService().startListeningForNewMessages();
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result ?? "Error"), backgroundColor: Colors.redAccent));
     }
@@ -262,10 +265,14 @@ class _LoginScreenState extends State<LoginScreen> {
           if (profile == null) {
             await DatabaseService().createUserProfile(user.uid, user.email!);
             if (mounted) {
+              NotificationService().startListeningForNewNotifications();
+              NotificationService().startListeningForNewMessages();
               Navigator.pushNamedAndRemoveUntil(context, '/onboarding_current', (route) => false);
             }
           } else {
             if (mounted) {
+              NotificationService().startListeningForNewNotifications();
+              NotificationService().startListeningForNewMessages();
               Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
             }
           }

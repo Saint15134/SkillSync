@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:skillsync/core/app_lifecycle_handler.dart';
+import 'package:skillsync/providers/notifications_provider.dart';
+import 'package:skillsync/services/notification_service.dart';
 
 // SETTINGS & SERVICES
 import 'package:skillsync/firebase_options.dart';
@@ -34,6 +36,8 @@ import 'package:skillsync/screens/ai/chat_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Initialize notifications early
+  await NotificationService().initialize();
 
   runApp(
     MultiProvider(
@@ -42,6 +46,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => BiometricsProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()..loadStatus()),
       ],
       child: const SkillSyncApp(),
     ),
@@ -84,6 +89,8 @@ class SkillSyncApp extends StatelessWidget {
               }
 
               if (snapshot.hasData && snapshot.data != null) {
+                NotificationService().startListeningForNewNotifications();
+                NotificationService().startListeningForNewMessages();
                 return const HomeScreen();
               }
 
