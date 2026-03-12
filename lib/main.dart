@@ -2,6 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:skillsync/core/app_lifecycle_handler.dart';
+import 'package:skillsync/providers/notifications_provider.dart';
+import 'package:skillsync/services/notification_service.dart';
 
 // SETTINGS & SERVICES
 import 'package:skillsync/firebase_options.dart';
@@ -25,12 +28,16 @@ import 'package:skillsync/screens/profile/edit_profile_screen.dart';
 import 'package:skillsync/screens/onboarding/onboarding_current_skills_screen.dart';
 import 'package:skillsync/screens/onboarding/onboarding_new_skills_screen.dart';
 import 'package:skillsync/screens/splash/splash_screen.dart';
-import 'package:skillsync/screens/settings/settings_screen.dart';
 import 'package:skillsync/screens/auth/lock_screen.dart';
+import 'package:skillsync/screens/ai/ai_chat_screen.dart';
+import 'package:skillsync/screens/ai/chat_screen.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Initialize notifications early
+  await NotificationService().initialize();
 
   runApp(
     MultiProvider(
@@ -39,11 +46,15 @@ void main() async {
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => BiometricsProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()..loadStatus()),
       ],
       child: const SkillSyncApp(),
     ),
   );
 }
+
+// Global navigator key used by lifecycle handler to push LockScreen safely
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class SkillSyncApp extends StatelessWidget {
   const SkillSyncApp({super.key});
@@ -56,7 +67,11 @@ class SkillSyncApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'SkillSync',
+          navigatorKey: navigatorKey,
 
+          builder: (context, child) {
+            return AppLifecycleHandler(child: child!);
+          },
           // 🟢 Link the themeMode to our provider
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
@@ -73,12 +88,9 @@ class SkillSyncApp extends StatelessWidget {
                 );
               }
 
-              // 🟢 JUST AUTH: If logged in, go Home. No more onboarding checks here.
               if (snapshot.hasData && snapshot.data != null) {
-                final biometrics = Provider.of<BiometricsProvider>(context);
-                if (biometrics.isEnabled) {
-                  return const LockScreen();
-                }
+                NotificationService().startListeningForNewNotifications();
+                NotificationService().startListeningForNewMessages();
                 return const HomeScreen();
               }
 
@@ -102,6 +114,7 @@ class SkillSyncApp extends StatelessWidget {
             '/community': (context) => const CommunityPage(),
             '/explore': (context) => const MatchingScreen(),
             '/settings': (context) => const SettingsScreen(),
+            '/ai_chat': (context) => const AiChatScreen(),
           },
         );
       },

@@ -5,6 +5,8 @@ import 'package:skillsync/providers/theme_provider.dart';
 import 'package:skillsync/providers/user_provider.dart';
 import 'package:skillsync/services/auth_service.dart';
 import 'package:skillsync/providers/biometrics_provider.dart';
+import 'package:skillsync/providers/notifications_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:skillsync/widgets/primary_button.dart';
 import 'package:skillsync/providers/font_size_provider.dart'; // ✅ Add this
 
@@ -166,6 +168,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         await bm.setEnabled(false);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Biometrics lock disabled')),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Push Notifications Card
+            _buildSettingsCard(
+              colorScheme: colorScheme,
+              isDark: isDark,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Push Notifications",
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Switch.adaptive(
+                    activeColor: colorScheme.primary,
+                    value: context.watch<NotificationsProvider>().isEnabled,
+                    onChanged: (value) async {
+                      final provider = context.read<NotificationsProvider>();
+                      if (value) {
+                        final status = await provider.requestPermission();
+                        if (!provider.isEnabled) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Notifications disabled. Open settings to enable.'),
+                              action: SnackBarAction(
+                                label: 'Settings',
+                                onPressed: () => openAppSettings(),
+                              ),
+                            ),
+                          );
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('To disable notifications, open device Settings.'),
+                            action: SnackBarAction(
+                              label: 'Settings',
+                              onPressed: () => openAppSettings(),
+                            ),
+                          ),
                         );
                       }
                     },
